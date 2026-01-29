@@ -2,7 +2,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
+from sqlalchemy import create_engine, text
 from alembic import context
 from app.models import Base
 
@@ -51,6 +51,23 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def create_database_if_not_exists():
+    url = context.config.get_main_option("sqlalchemy.url")
+
+    db_name = "Schronisko"
+    master_url = url.replace("/Schronisko", "/master")
+
+    engine = create_engine(master_url, isolation_level="AUTOCOMMIT")
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(f"""
+            IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = '{db_name}')
+            CREATE DATABASE {db_name}
+            """)
+        )
+
+
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
@@ -58,6 +75,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    create_database_if_not_exists()
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
